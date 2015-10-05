@@ -1,35 +1,57 @@
 PREFIX=/usr/local
+LIBDIR=$(PREFIX)/lib
+
+PTHREAD_ENABLE=y
 CC=gcc
 LD=gcc
-CFLAGS=-Wall -O2 -g -DKGA_IMPORTANT_CHECK
+CFLAGS=-Wall -O2 -g
+CFLAGS_BASE=$(CFLAGS) -fPIC -std=c99 -I.
 LDFLAGS=
-CFLAGS_BASE=$(CFLAGS) -I./libkga -std=c99
 LDFLAGS_BASE=$(LDFLAGS)
-COMP=$(CC) $(CFLAGS_BASE) -c -o
-LINK=$(LD) $(LDFLAGS_BASE) -o
-LIBKGA_OPTS=CC=$(CC) LD=$(LD) PTHREAD_ENABLE=n
-HEADERS=$(wildcard *.h) Makefile
-OBJECTS=kga_wrappers.o shell.o port.o pkg.o misc.o port_main.o pkg_main.o main_common.o
+KGA_LDFLAGS+=$(LDFLAGS_BASE)
+KGA_CFLAGS=
+ifeq ($(PTHREAD_ENABLE),y)
+KGA_LDFLAGS+= -lpthread
+KGA_CFLAGS+= -D_PTHREAD_ENABLE=1
+endif
+KGA_LDFLAGS=$(LDFLAGS_BASE) -lpthread
+COMP=$(CC) $(CFLAGS_BASE) $(KGA_CFLAGS) -c -o
+LINKSO=$(LD) -shared $(LDFLAGS_BASE) -o
 
-all : portng pkgng
+LINK=$(LD) $(LDFLAGS) -o
 
-$(OBJECTS) : %.o : %.c $(HEADERS)
+NAME=libkga
+VERSION=0
+TARGETS=libkga.so libkga.a
+
+DESTDIR?=
+AR=ar
+ARC=$(AR) rc 
+
+.PHONY : all
+
+LIBKGA_OBJECTS=kga.o exception.o exceptions.o scope.o array.o string.o wstring.o
+LIBKGA_HEADERS=$(wildcard kga/*.h) Makefile
+
+all : $(TARGETS)
+
+libkga.so : $(LIBKGA_OBJECTS)
+	$(LINKSO) $@ $(KGA_LDFLAGS) $^
+
+libkga.a : $(LIBKGA_OBJECTS)
+	$(ARC) $@ $^
+
+$(LIBKGA_OBJECTS) : %.o : %.c $(LIBKGA_HEADERS)
 	$(COMP) $@ $<
 
-portng: main_common.o port_main.o port.o shell.o pkg.o kga_wrappers.o misc.o libkga/libkga.a
-	$(LINK) $@ $^
+.PHONY : clean install
 
-pkgng: main_common.o pkg_main.o pkg.o kga_wrappers.o misc.o libkga/libkga.a
-	$(LINK) $@ $^
+clean:
+	rm -f *.o *.so *.a
 
-clean :
-	rm -f *.o portng
-	make $(LIBKGA_OPTS) -C libkga clean
-
-libkga/libkga.a: subdirs
-	:
-
-.PHONY : clean all subdirs
-
-subdirs:
-	make CFLAGS="$(CFLAGS)" $(LIBKGA_OPTS) -C libkga libkga.a
+install : $(TARGETS)
+	mkdir -m 755 -p $(DESTDIR)$(LIBDIR)
+	mkdir -m 755 -p $(DESTDIR)$(PREFIX)/include/kga
+	install -m 755 $(TARGETS) $(DESTDIR)$(PREFIX)/lib/
+	install -m 755 $(TARGETS) $(DESTDIR)$(PREFIX)/lib/
+	install -m 644 kga/*.h $(DESTDIR)$(PREFIX)/include/kga/
