@@ -45,6 +45,7 @@ const exception_t *exception();
 int exception_debug(int debug);
 int exception_grow();
 int exception_init();
+size_t exception_stack_size();
 int exception_thread_init();
 void exception_throw(exception_type_t *type, int code, const char *message, const char *file, const char *func, int line, char *verbose);
 void exception_finish();

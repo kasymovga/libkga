@@ -163,6 +163,11 @@ finish:
 	return ret;
 };
 
+size_t exception_stack_size() {
+	struct try_stack *try_stack = get_thread_try_stack();
+	return (try_stack ? try_stack->s : 0);
+}
+
 void exception_print(FILE *out) {
 	const exception_t *exc = exception();
 	struct try_stack *try_stack = get_thread_try_stack();
